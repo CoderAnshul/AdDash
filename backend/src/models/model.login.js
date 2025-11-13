@@ -1,19 +1,19 @@
 import mongoose, { Schema } from "mongoose";
 const userScheme = new Schema(
     {
-        email: { 
-            type: String, 
-            required: true, 
-            unique: true 
+        email: {
+            type: String,
+            required: true,
+            unique: true
         },
-        password: { 
-            type: String, 
-            required: true 
+        password: {
+            type: String,
+            required: true
         },
-        role: { 
-            type: String, 
-            enum: ["superAdmin", "support", "finance", "compliance", "user"], 
-            default: "user" 
+        role: {
+            type: String,
+            enum: ["superAdmin", "support", "finance", "compliance", "user", "listener"],
+            default: "user"
         },
         token: { type: String },
 
@@ -43,13 +43,17 @@ const userScheme = new Schema(
         lastActive: {
             type: Date
         },
-        swssion: {
+        sessions: [{
             type: Schema.Types.ObjectId,
             ref: "Session"
-        }
-        
-    },
-);
+        }],
+        tickets: [{
+            type: Schema.Types.ObjectId,
+            ref: "SupportTicket"
+        }]
+    }, {
+    timestamps: true
+});
 
 const User = mongoose.model("User", userScheme);
 

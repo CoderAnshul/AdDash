@@ -12,44 +12,60 @@ const createSafeUserResponse = (userDoc) => {
         phoneNumber: userDoc.phoneNumber,
         status: userDoc.status,
         lastActive: userDoc.lastActive,
-        registered: userDoc.registered
+        registered: userDoc.registered,
+        sessions: userDoc.sessions || [],
+        tickets: userDoc.tickets || []
     };
 };
 
 const login = async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) {
-        return res.status(httpStatus.BAD_REQUEST).json({ message: "Please provide email and password" });
+        return res.status(httpStatus.BAD_REQUEST).json({
+            message: "Please provide email and password",
+        });
     }
 
     try {
-        const user = await User.findOne({ email });
+        const user = await User.findOne({ email })
+            .populate({
+                path: "sessions",
+                select: "type status startTime endTime duration listenerId",
+            })
+            .populate({
+                path: "tickets",
+                select: "subject category status priority createdAt updatedAt",
+            });
+
         if (!user) {
             return res.status(httpStatus.NOT_FOUND).json({ message: "User not found" });
         }
+
         const isPassword = await bcrypt.compare(password, user.password);
-
-        if (isPassword) {
-            let token = crypto.randomBytes(20).toString("hex");
-            user.token = token;
-            user.lastActive = Date.now();
-            await user.save();
-
-            const count = await User.countDocuments({ role: "user" });
-            const userResponse = createSafeUserResponse(user);
-
-            return res.status(httpStatus.OK).json({
-                message: "Login Successful",
-                token,
-                user: userResponse,
-                count
-            });
-        } else {
-            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid email or Password" });
+        if (!isPassword) {
+            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid email or password" });
         }
+
+        const token = crypto.randomBytes(20).toString("hex");
+        user.token = token;
+        user.lastActive = Date.now();
+        await user.save();
+
+        const userResponse = createSafeUserResponse(user);
+
+        const count = await User.countDocuments({ role: "user" });
+
+        return res.status(httpStatus.OK).json({
+            message: "Login Successful",
+            token,
+            user: userResponse,
+            count,
+        });
     } catch (error) {
         console.error("Login error:", error);
-        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: `Something went wrong: ${error.message}` });
+        return res
+            .status(httpStatus.INTERNAL_SERVER_ERROR)
+            .json({ message: `Something went wrong: ${error.message}` });
     }
 };
 
